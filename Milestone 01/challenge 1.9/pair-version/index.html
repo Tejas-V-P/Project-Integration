@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Task Manager</title>
+  <meta name="description" content="A simple task manager app to track your daily tasks — add, complete, and filter tasks." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <main class="card" role="main">
+
+    <!-- Header -->
+    <header>
+      <h1>Task Manager</h1>
+      <p>Stay on top of your day.</p>
+    </header>
+
+    <!-- Input Area -->
+    <div class="input-area">
+      <input
+        type="text"
+        id="task-input"
+        placeholder="Add a new task…"
+        aria-label="New task title"
+        maxlength="200"
+        autocomplete="off"
+      />
+      <button id="add-btn" aria-label="Add task">Add</button>
+    </div>
+
+    <!-- Filter Buttons -->
+    <div class="filters" role="group" aria-label="Task filters">
+      <button class="filter-btn active" data-filter="all"       id="filter-all">All</button>
+      <button class="filter-btn"        data-filter="active"    id="filter-active">Active</button>
+      <button class="filter-btn"        data-filter="completed" id="filter-completed">Completed</button>
+    </div>
+
+    <!-- Task List -->
+    <ul id="task-list" aria-label="Task list" aria-live="polite"></ul>
+
+    <!-- Task Count -->
+    <p class="task-count" id="task-count" aria-live="polite">
+      <span>0</span> tasks remaining
+    </p>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
