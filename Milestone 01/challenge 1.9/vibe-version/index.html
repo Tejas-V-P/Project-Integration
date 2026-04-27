@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Manager - Vibe Version</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+
+    <div class="max-w-md w-full bg-white rounded-2xl shadow-xl p-6 sm:p-8 space-y-6">
+        <div class="text-center">
+            <h1 class="text-3xl font-bold text-gray-900 tracking-tight">Tasks</h1>
+            <p class="text-gray-500 text-sm mt-1 font-medium">Get things done.</p>
+        </div>
+
+        <form id="task-form" class="flex gap-3">
+            <input type="text" id="task-input" placeholder="What needs to be done?" 
+                class="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all">
+            <button type="submit" 
+                class="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-5 py-3 rounded-xl font-medium transition-colors shadow-sm flex items-center justify-center">
+                <i class="fas fa-plus sm:hidden"></i>
+                <span class="hidden sm:inline">Add</span>
+            </button>
+        </form>
+
+        <div class="flex p-1 bg-gray-100 rounded-lg justify-between" id="filters">
+            <button data-filter="all" class="filter-btn flex-1 py-1.5 text-sm font-semibold rounded-md bg-white text-gray-900 shadow-sm transition-all">All</button>
+            <button data-filter="active" class="filter-btn flex-1 py-1.5 text-sm font-semibold rounded-md text-gray-500 hover:text-gray-700 transition-all">Active</button>
+            <button data-filter="completed" class="filter-btn flex-1 py-1.5 text-sm font-semibold rounded-md text-gray-500 hover:text-gray-700 transition-all">Completed</button>
+        </div>
+
+        <ul id="task-list" class="space-y-3 max-h-[50vh] overflow-y-auto pr-1">
+            <!-- Tasks will render here -->
+        </ul>
+
+        <div class="pt-5 border-t border-gray-100 text-sm font-medium text-gray-500 flex justify-between items-center">
+            <span id="task-count">0 tasks remaining</span>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('task-form');
+        const input = document.getElementById('task-input');
+        const list = document.getElementById('task-list');
+        const filterBtns = document.querySelectorAll('.filter-btn');
+        const countDisplay = document.getElementById('task-count');
+
+        let tasks = [];
+        let currentFilter = 'all';
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const text = input.value.trim();
+            if (text) {
+                tasks.push({ id: Date.now(), text, completed: false });
+                input.value = '';
+                renderTasks();
+            }
+        });
+
+        window.toggleTask = function(id) {
+            tasks = tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t);
+            renderTasks();
+        }
+
+        filterBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                currentFilter = btn.dataset.filter;
+                
+                // Update active state styling
+                filterBtns.forEach(b => {
+                    b.classList.remove('bg-white', 'text-gray-900', 'shadow-sm');
+                    b.classList.add('text-gray-500');
+                });
+                btn.classList.remove('text-gray-500');
+                btn.classList.add('bg-white', 'text-gray-900', 'shadow-sm');
+                
+                renderTasks();
+            });
+        });
+
+        function renderTasks() {
+            const filteredTasks = tasks.filter(t => {
+                if (currentFilter === 'active') return !t.completed;
+                if (currentFilter === 'completed') return t.completed;
+                return true;
+            });
+
+            list.innerHTML = filteredTasks.map(t => `
+                <li class="flex items-center p-3 sm:p-4 rounded-xl border ${t.completed ? 'bg-gray-50 border-gray-100' : 'bg-white border-gray-200 shadow-sm'} transition-all cursor-pointer group hover:border-blue-300" onclick="toggleTask(${t.id})">
+                    <button class="flex-shrink-0 w-6 h-6 rounded-full border-2 mr-4 flex items-center justify-center transition-colors
+                        ${t.completed ? 'border-green-500 bg-green-500' : 'border-gray-300 group-hover:border-blue-400'}">
+                        ${t.completed ? '<i class="fas fa-check text-white text-[10px]"></i>' : ''}
+                    </button>
+                    <span class="flex-1 text-sm sm:text-base font-medium ${t.completed ? 'text-gray-400 line-through' : 'text-gray-700'} transition-all">
+                        ${escapeHtml(t.text)}
+                    </span>
+                </li>
+            `).join('');
+
+            if (filteredTasks.length === 0) {
+                list.innerHTML = `
+                    <div class="text-center py-10">
+                        <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 text-gray-400 mb-3">
+                            <i class="fas ${currentFilter === 'completed' ? 'fa-check-circle' : 'fa-clipboard-list'} text-xl"></i>
+                        </div>
+                        <p class="text-gray-500 text-sm font-medium">
+                            ${currentFilter === 'all' ? 'No tasks yet. Add one above!' : 'No ' + currentFilter + ' tasks.'}
+                        </p>
+                    </div>
+                `;
+            }
+
+            const remaining = tasks.filter(t => !t.completed).length;
+            countDisplay.textContent = `${remaining} task${remaining !== 1 ? 's' : ''} remaining`;
+        }
+
+        function escapeHtml(unsafe) {
+            return unsafe
+                 .replace(/&/g, "&amp;")
+                 .replace(/</g, "&lt;")
+                 .replace(/>/g, "&gt;")
+                 .replace(/"/g, "&quot;")
+                 .replace(/'/g, "&#039;");
+         }
+
+        renderTasks();
+    </script>
+</body>
+</html>

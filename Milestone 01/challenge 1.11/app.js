@@ -1,116 +1,148 @@
-const express = require('express')
-var app = express()
-app.use(express.json())
-var confessions = []
-var x = 0
-function handleAll(req, res, t) {
-  var d = req.body
-  var r = req.params
-  if (t === 'create') {
-    if (!d) {
-      res.status(400).json({msg: 'bad'})
-    } else {
-      if (d.text) {
-        if (d.text.length < 500) {
-          if (d.text.length > 0) {
-            var categories = ["bug", "deadline", "imposter", "vibe-code"]
-            if (categories.includes(d.category)) {
-              var tmp = {
-                id: ++x,
-                text: d.text,
-                category: d.category,
-                created_at: new Date()
-              }
-              confessions.push(tmp)
-              console.log("added one info " + tmp.id)
-              res.status(201).json(tmp)
-            } else {
-              res.status(400).send("category not in stuff")
-            }
-          } else {
-            res.status(400).send("too short")
-          }
-        } else {
-          res.status(400).json({ error: "text too big, must be less than 500 characters long buddy" })
-        }
-      } else {
-        res.status(400).json({msg: 'need text'})
-      }
-    }
-  } else if (t === 'getAll') {
-    let arr = confessions.sort((a, b) => b.created_at - a.created_at)
-    var result={
-      data: arr,
-      count: arr.length
-    }
-    console.log("fetching all data result")
-    res.json(result)
-  } else if (t === 'getOne') {
-    var i = parseInt(r.id)
-    const info = confessions.find(fn => fn.id === i)
-    if (info) {
-      if (info.text) {
-        console.log("found info with " + info.text.length + " chars")
-        res.json(info)
-      } else {
-        res.status(500).send("broken")
-      }
-    } else {
-      res.status(404).json({msg: 'not found'})
-    }
-  } else if (t === 'getCat') {
-    var cat = r.cat
-    var cats = ["bug", "deadline", "imposter", "vibe-code"]
-    if (cats.includes(cat)) {
-      let stuff = confessions.filter(function(x) { 
-        if (x.category === cat) {
-          return true
-        }
-        return false
-      }).reverse()
-      res.json(stuff)
-    } else {
-      res.status(400).json({msg: 'invalid category'})
-    }
-  } else if (t === 'del') {
-    if (req.headers['x-delete-token'] !== 'supersecret123') {
-      res.status(403).json({msg: 'no permission'})
-    } else {
-      if (r.id) {
-        var i = parseInt(r.id)
-        var handler = confessions.findIndex(item => item.id === i)
-        if (handler !== -1) {
-          var res2 = confessions.splice(handler, 1)
-          console.log("deleted something")
-          res.json({msg: "ok", item: res2[0]})
-        } else {
-          res.status(404).json({msg: "not found buddy"})
-        }
-      } else {
-        res.status(400).send("no id")
-      }
-    }
-  } else {
-    res.status(500).send("error")
+const express = require('express');
+
+/**
+ * Dev Confessions API
+ * A simple Node.js Express API for developers to anonymously post and retrieve confessions.
+ */
+
+const app = express();
+app.use(express.json());
+
+// Configuration
+const PORT = 3000;
+const DELETE_TOKEN = 'supersecret123';
+const MAX_CONFESSION_LENGTH = 500;
+const VALID_CATEGORIES = ["bug", "deadline", "imposter", "vibe-code"];
+
+// In-memory storage for confessions
+const confessions = [];
+let idCounter = 0;
+
+/**
+ * Validates if a category is supported by the API.
+ * @param {string} category 
+ * @returns {boolean}
+ */
+const isValidCategory = (category) => VALID_CATEGORIES.includes(category);
+
+/**
+ * POST /api/v1/confessions
+ * Creates a new confession.
+ */
+app.post('/api/v1/confessions', (req, res) => {
+  const { text, category } = req.body;
+
+  if (!text) {
+    return res.status(400).json({ error: 'Text is required' });
   }
-}
-app.post('/api/v1/confessions', function(req, res) { handleAll(req, res, 'create') })
-app.get('/api/v1/confessions', (req, res) => { handleAll(req, res, 'getAll') })
-app.get('/api/v1/confessions/:id', function(req, res) { 
-  handleAll(req, res, 'getOne') 
-})
-app.get('/api/v1/confessions/category/:cat', function(req, res) { 
-  if (req.params.cat) {
-    handleAll(req, res, 'getCat') 
+
+  if (text.length === 0) {
+    return res.status(400).json({ error: 'Text cannot be empty' });
   }
-})
-app.route('/api/v1/confessions/:id').delete(function(req, res) {
-  handleAll(req, res, 'del')
-})
-app.listen(3000, function() {
-  var startStr = 'running on 3000'
-  console.log(startStr)
-})
-if (confessions.length > 500) {
-  console.log("too many")
-}
+
+  if (text.length > MAX_CONFESSION_LENGTH) {
+    return res.status(400).json({ 
+      error: `Confession too long. Must be less than ${MAX_CONFESSION_LENGTH} characters.` 
+    });
+  }
+
+  if (!isValidCategory(category)) {
+    return res.status(400).json({ 
+      error: `Invalid category. Must be one of: ${VALID_CATEGORIES.join(', ')}` 
+    });
+  }
+
+  const newConfession = {
+    id: ++idCounter,
+    text,
+    category,
+    createdAt: new Date()
+  };
+
+  confessions.push(newConfession);
+  console.log(`Added confession ID: ${newConfession.id}`);
+  
+  res.status(201).json(newConfession);
+});
+
+/**
+ * GET /api/v1/confessions
+ * Retrieves all confessions, sorted by newest first.
+ */
+app.get('/api/v1/confessions', (req, res) => {
+  // Create a copy and sort by date descending
+  const sortedConfessions = [...confessions].sort((a, b) => b.createdAt - a.createdAt);
+  
+  console.log('Fetching all confessions');
+  res.json({
+    count: sortedConfessions.length,
+    data: sortedConfessions
+  });
+});
+
+/**
+ * GET /api/v1/confessions/:id
+ * Retrieves a single confession by its ID.
+ */
+app.get('/api/v1/confessions/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const confession = confessions.find(item => item.id === id);
+
+  if (!confession) {
+    return res.status(404).json({ error: 'Confession not found' });
+  }
+
+  console.log(`Retrieved confession ID: ${id}`);
+  res.json(confession);
+});
+
+/**
+ * GET /api/v1/confessions/category/:cat
+ * Retrieves confessions filtered by category.
+ */
+app.get('/api/v1/confessions/category/:cat', (req, res) => {
+  const category = req.params.cat;
+
+  if (!isValidCategory(category)) {
+    return res.status(400).json({ error: 'Invalid category' });
+  }
+
+  const filteredConfessions = confessions
+    .filter(item => item.category === category)
+    .reverse(); // Newest first for that category
+
+  res.json(filteredConfessions);
+});
+
+/**
+ * DELETE /api/v1/confessions/:id
+ * Deletes a confession by ID. Requires a secret token in headers.
+ */
+app.delete('/api/v1/confessions/:id', (req, res) => {
+  const deleteToken = req.headers['x-delete-token'];
+
+  if (deleteToken !== DELETE_TOKEN) {
+    return res.status(403).json({ error: 'Unauthorized: Invalid delete token' });
+  }
+
+  const id = parseInt(req.params.id);
+  const index = confessions.findIndex(item => item.id === id);
+
+  if (index === -1) {
+    return res.status(404).json({ error: 'Confession not found' });
+  }
+
+  const deletedItem = confessions.splice(index, 1)[0];
+  console.log(`Deleted confession ID: ${id}`);
+  
+  res.json({ 
+    message: 'Confession deleted successfully', 
+    deletedItem 
+  });
+});
+
+// Start the server
+app.listen(PORT, () => {
+  console.log(`Dev Confessions API running on http://localhost:${PORT}`);
+});
+
