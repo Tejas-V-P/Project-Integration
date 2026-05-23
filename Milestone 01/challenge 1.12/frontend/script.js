@@ -8,16 +8,6 @@ const sendBtn = document.getElementById('sendBtn');
 /**
  * Render a message bubble in the chat display
  */
-function renderMessage(role, content) {
-    const messageDiv = document.createElement('div');
-    messageDiv.classList.add('message', role);
-    messageDiv.textContent = content;
-    chatDisplay.appendChild(messageDiv);
-    
-    // Auto-scroll to bottom
-    chatDisplay.scrollTop = chatDisplay.scrollHeight;
-}
-
 /**
  * Handle sending the message
  */
@@ -34,11 +24,57 @@ async function sendMessage() {
     // 3. Clear input
     messageInput.value = "";
 
-    // TODO: Call your backend /chat route here
-    // Send the full `messages` array — not just the latest message
-    // Hint: fetch('http://localhost:3000/chat', { method: 'POST', ... })
-    // On response: add { role: 'assistant', content: reply } to messages
-    // Render the assistant bubble in chatDisplay
+    // 4. Show typing indicator
+    const typingIndicator = renderMessage("assistant", "Thinking...", true);
+
+    try {
+        // 5. Call backend /chat route
+        const response = await fetch('http://localhost:3000/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ messages })
+        });
+
+        const data = await response.json();
+
+        // Remove typing indicator
+        typingIndicator.remove();
+
+        if (data.error) {
+            renderMessage("assistant", "Error: " + data.error);
+            return;
+        }
+
+        // 6. Add assistant message to state
+        messages.push({ role: "assistant", content: data.reply });
+
+        // 7. Render assistant bubble
+        renderMessage("assistant", data.reply);
+
+    } catch (error) {
+        console.error("Fetch error:", error);
+        typingIndicator.remove();
+        renderMessage("assistant", "Failed to connect to the server. Is the backend running?");
+    }
+}
+
+/**
+ * Render a message bubble in the chat display
+ */
+function renderMessage(role, content, isTyping = false) {
+    const messageDiv = document.createElement('div');
+    messageDiv.classList.add('message', role);
+    if (isTyping) messageDiv.classList.add('typing');
+    
+    messageDiv.textContent = content;
+    chatDisplay.appendChild(messageDiv);
+    
+    // Auto-scroll to bottom
+    chatDisplay.scrollTop = chatDisplay.scrollHeight;
+    
+    return messageDiv;
 }
 
 // Event Listeners
