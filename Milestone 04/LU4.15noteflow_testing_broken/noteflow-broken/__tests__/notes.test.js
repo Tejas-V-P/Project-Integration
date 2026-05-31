@@ -37,6 +37,11 @@ jest.mock('@prisma/client', () => {
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
+// Reset mocks before each test to prevent state bleeding
+beforeEach(() => {
+  jest.clearAllMocks();
+});
+
 // ─────────────────────────────────────────────
 // HAPPY PATH TESTS
 // These test what happens when everything works correctly.
@@ -59,10 +64,8 @@ describe('Happy Path', () => {
       .send({ title: 'My First Note', content: 'Some content here' });
 
     // Assert
-    // ❌ FLAW 2: Status code is wrong. POST that creates a resource
-    //    should return 201 Created, not 200 OK.
-    //    Fix: change 200 to 201.
-    expect(res.statusCode).toBe(200);                    // ❌ should be 201
+    // ✅ FIXED: Status code is 201 Created for successful resource creation
+    expect(res.statusCode).toBe(201);                    // ✅ fixed
     expect(res.body).toHaveProperty('note');
     expect(res.body.note.title).toBe('My First Note');
   });
@@ -83,10 +86,8 @@ describe('Happy Path', () => {
     // Assert
     expect(res.statusCode).toBe(200);
 
-    // ❌ FLAW 3: Wrong response field. The endpoint wraps the note in
-    //    { note: ... } but this test checks res.body.data.note.
-    //    Fix: change res.body.data.note to res.body.note.
-    expect(res.body.data.note.title).toBe('My First Note');  // ❌ wrong path
+    // ✅ FIXED: Response field is res.body.note (not res.body.data.note)
+    expect(res.body.note.title).toBe('My First Note');  // ✅ fixed
   });
 
 });
@@ -98,14 +99,8 @@ describe('Happy Path', () => {
 describe('Failure Path', () => {
 
   test('GET /api/notes/:id — returns 404 when note does not exist', async () => {
-    // ❌ FLAW 4: The mock for findUnique is NOT set up for this test.
-    //    Without a mock return value, jest.fn() returns undefined by default.
-    //    The endpoint receives undefined from prisma.note.findUnique,
-    //    which is truthy enough to skip the null check and return 200
-    //    with { note: undefined } instead of 404.
-    //
-    //    Fix: add this line before the request:
-    //    prisma.note.findUnique.mockResolvedValue(null);
+    // ✅ FIXED: Mock is set up to return null for not-found case
+    prisma.note.findUnique.mockResolvedValue(null);
 
     const res = await request(app).get('/api/notes/9999');
 
@@ -122,12 +117,8 @@ describe('Failure Path', () => {
       .send({ content: 'Content without a title' });
 
     // Assert
-    // ❌ FLAW 5: Wrong expected status code. Missing required fields should
-    //    return 422 Unprocessable Entity (the data was understood but invalid),
-    //    not 400 Bad Request.
-    //    Fix: change 400 to 422.
-    //    Also fix: the endpoint in src/routes/notes.js needs validation added.
-    expect(res.statusCode).toBe(400);                    // ❌ should be 422
+    // ✅ FIXED: Returns 422 Unprocessable Entity for validation errors
+    expect(res.statusCode).toBe(422);                    // ✅ fixed
     expect(res.body).toHaveProperty('message');
   });
 

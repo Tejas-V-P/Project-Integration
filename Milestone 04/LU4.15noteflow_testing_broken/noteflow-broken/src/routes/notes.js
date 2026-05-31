@@ -7,18 +7,18 @@ const prisma = new PrismaClient();
 
 // POST /api/notes
 // Creates a new note
-// ❌ FLAW: No validation — empty title is accepted and stored.
-//    Fix required: check that title exists and is not an empty string.
-//    If invalid, return 422 Unprocessable Entity.
+// ✅ FIXED: Added validation for title field
 router.post('/', async (req, res, next) => {
   try {
     const { title, content } = req.body;
 
-    // Missing validation here — title can be empty, null, or undefined
-    // and the endpoint will still attempt to create a note.
+    // ✅ FIXED: Validate that title exists and is not empty
+    if (!title || typeof title !== 'string' || title.trim() === '') {
+      return res.status(422).json({ message: 'Title is required and must not be empty' });
+    }
 
     const note = await prisma.note.create({
-      data: { title, content }
+      data: { title: title.trim(), content }
     });
 
     res.status(201).json({ note });
@@ -39,8 +39,8 @@ router.get('/:id', async (req, res, next) => {
     });
 
     if (!note) {
-      // ❌ Wrong key — 'error' should be 'message'
-      return res.status(404).json({ error: 'Not found' });
+      // ✅ FIXED: Returns correct response shape with 'message' key
+      return res.status(404).json({ message: 'Note not found' });
     }
 
     res.status(200).json({ note });
