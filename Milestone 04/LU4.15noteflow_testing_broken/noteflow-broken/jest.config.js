@@ -9,7 +9,7 @@
 
 /** @type {import('jest').Config} */
 const config = {
-  testEnvironment: 'browser',   // ❌ wrong — should be 'node'
+  testEnvironment: 'node',   // ✅ fixed — node environment for server-side tests
   testMatch: ['**/__tests__/**/*.test.js'],
   verbose: true,
 };
